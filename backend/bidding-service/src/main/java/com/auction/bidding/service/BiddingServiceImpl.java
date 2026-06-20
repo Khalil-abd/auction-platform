@@ -1,19 +1,21 @@
 package com.auction.bidding.service;
 
+import com.auction.bidding.event.BidPlacedEvent;
 import com.auction.bidding.model.AuctionEngine;
 import com.auction.bidding.model.BidHistory;
 import com.auction.bidding.repository.AuctionEngineRepository;
 import com.auction.bidding.repository.BidHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -25,26 +27,32 @@ public class BiddingServiceImpl implements BiddingService {
     private final BidHistoryRepository historyRepository;
     private final StringRedisTemplate redisTemplate;
 
-    private static final String REDIS_PREFIX = "auction:highest_bid:";
+    // Inject the Kafka template managed by Spring Boot
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Value("${app.redis.bids-prefix}")
+    private String redisPrefix;
+
+    @Value("${app.kafka.bids-topic}")
+    private String kafkaBidsTopic;
 
     @Override
     @Transactional
     public BidHistory placeBid(UUID auctionId, UUID bidderId, BigDecimal amount) {
-        String redisKey = REDIS_PREFIX + auctionId;
+        String redisKey = redisPrefix + auctionId;
 
-        // 1. Redis fast-abort pre-validation
         validateAgainstCache(redisKey, amount);
 
-        // 2. Obtain database lock and perform ground-truth transactional validation
         AuctionEngine engine = getOrCreateAuctionEngine(auctionId);
         validateBidAmount(amount, engine.getCurrentHighestBid());
 
-        // 3. Mutate persistent layers
         updateAuctionState(engine, amount, bidderId);
         BidHistory savedHistory = recordBidHistory(auctionId, bidderId, amount);
 
-        // 4. Update the ephemeral distributed cache
         updateCache(redisKey, amount);
+
+        // Emit Kafka event asynchronously
+        emitBidPlacedEvent(savedHistory);
 
         log.info("Successfully accepted bid of {} on auction {} by user {}", amount, auctionId, bidderId);
         return savedHistory;
@@ -56,7 +64,26 @@ public class BiddingServiceImpl implements BiddingService {
         return historyRepository.findByAuctionId(auctionId, pageable);
     }
 
-    // --- Private Helper Methods enforcing SRP ---
+    // --- Private Helper Methods ---
+
+    private void emitBidPlacedEvent(BidHistory history) {
+        BidPlacedEvent event = BidPlacedEvent.builder()
+                .auctionId(history.getAuctionId())
+                .bidderId(history.getBidderId())
+                .amount(history.getAmount())
+                .timestamp(history.getTimestamp())
+                .build();
+
+        // Send to topic using auctionId as the message key to maintain order guarantee per auction
+        kafkaTemplate.send(kafkaBidsTopic, event.getAuctionId().toString(), event)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed to publish BidPlacedEvent to Kafka for auction {}: {}", event.getAuctionId(), ex.getMessage());
+                    } else {
+                        log.debug("Successfully published BidPlacedEvent to partition {}", result.getRecordMetadata().partition());
+                    }
+                });
+    }
 
     private void validateAgainstCache(String redisKey, BigDecimal amount) {
         String cachedHighest = redisTemplate.opsForValue().get(redisKey);
@@ -94,7 +121,7 @@ public class BiddingServiceImpl implements BiddingService {
                 .auctionId(auctionId)
                 .bidderId(bidderId)
                 .amount(amount)
-                .timestamp(LocalDateTime.now())
+                .timestamp(java.time.LocalDateTime.now())
                 .build();
         return historyRepository.save(historyRecord);
     }
@@ -103,7 +130,6 @@ public class BiddingServiceImpl implements BiddingService {
         try {
             redisTemplate.opsForValue().set(redisKey, amount.toString());
         } catch (Exception e) {
-            // Log cache failures as warnings so they don't roll back the DB transaction
             log.warn("Failed to update Redis cache for key {}: {}", redisKey, e.getMessage());
         }
     }
