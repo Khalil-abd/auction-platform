@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # 1. Relational Database: PostgreSQL (For High-Consistency Bidding Engine)
+  postgres:
+    image: postgres:16-alpine
+    container_name: auction-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: auction_bidding
+      POSTGRES_USER: akai_shuichi
+      POSTGRES_PASSWORD: Aptx-4869
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - auction-network
+
+  # 2. Document Database: MongoDB (For Dynamic Product Catalog)
+  mongodb:
+    image: mongo:7.0
+    container_name: auction-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: conan
+      MONGO_INITDB_ROOT_PASSWORD: Aptx-4869
+      MONGO_INITDB_DATABASE: auction_catalog
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - auction-network
+
+  # 3. In-Memory Cache: Redis (For Low-Latency Validations & Rate Limiting)
+  redis:
+    image: redis:7.2-alpine
+    container_name: auction-redis
+    ports:
+      - "6379:6379"
+    command: "redis-server --requirepass Aptx-4869"
+    networks:
+      - auction-network
+
+  # 4. Message Broker: Apache Kafka (KRaft Mode - No Zookeeper Required)
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: auction-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk' # Explicitly required by Confluent's startup scripts
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@localhost:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - auction-network
+
+volumes:
+  postgres_data:
+    driver: local
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+  kafka_data:
+    driver: local
+
+networks:
+  auction-network:
+    driver: bridge
