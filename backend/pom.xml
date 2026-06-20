@@ -23,6 +23,7 @@
     <modules>
         <module>gateway-service</module>
         <module>catalog-service</module>
+        <module>bidding-service</module>
     </modules>
     
     <dependencyManagement>
