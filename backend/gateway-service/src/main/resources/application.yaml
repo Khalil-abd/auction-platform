@@ -1,6 +1,11 @@
 server:
   port: 8080
 
+app:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET}
+
 spring:
   application:
     name: gateway-service
@@ -8,18 +13,19 @@ spring:
   cloud:
     gateway:
       # Global CORS configuration for our Angular application
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOrigins: "http://localhost:4200"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - OPTIONS
-            allowedHeaders: "*"
-            allowCredentials: true
+      server:
+        webflux:
+          cors-configurations:
+            '[/**]':
+              allowedOrigins: "http://localhost:4200"
+              allowedMethods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - OPTIONS
+              allowedHeaders: "*"
+              allowCredentials: true
 
       # Route mappings to forward incoming traffic down to specific microservices
       routes:
