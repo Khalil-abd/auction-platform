@@ -4,30 +4,9 @@ import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsWebFilter;
-import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 @Configuration
 public class GatewayRoutingConfig {
-
-    @Bean
-    public CorsWebFilter corsWebFilter() {
-        CorsConfiguration corsConfig = new CorsConfiguration();
-        // Allow your Angular frontend origin
-        corsConfig.addAllowedOrigin("http://localhost:4200");
-        corsConfig.addAllowedMethod("GET");
-        corsConfig.addAllowedMethod("POST");
-        corsConfig.addAllowedMethod("PUT");
-        corsConfig.addAllowedMethod("DELETE");
-        corsConfig.addAllowedMethod("OPTIONS");
-        corsConfig.addAllowedHeader("*"); // Allow all headers (Authorization, Content-Type, etc.)
-        corsConfig.setAllowCredentials(true); // Allow credentials like cookies or authorization headers
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", corsConfig); // Apply this configuration globally to all paths passing through the gateway
-
-        return new CorsWebFilter(source);
-    }
 
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
