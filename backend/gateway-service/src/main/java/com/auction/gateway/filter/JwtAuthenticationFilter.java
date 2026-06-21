@@ -29,19 +29,18 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
+        String path = request.getURI().getPath();
 
-        // 1. Skip token validation for public endpoints
-        if (request.getURI().getPath().contains("/api/v1/auth/")) {
+        // 1. Skip token validation for public endpoints and WebSocket paths if needed
+        if (path.contains("/api/v1/auth/") || path.contains("/ws-notifications")) {
             return chain.filter(exchange);
         }
 
-        // 2. Extract Authorization Header
-        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return onError(exchange, "Missing or invalid Authorization header", HttpStatus.UNAUTHORIZED);
+        // 2. Extract Token with multiple strategies
+        String token = extractToken(request);
+        if (token == null) {
+            return onError(exchange, "Missing or invalid Authorization header or token query parameter", HttpStatus.UNAUTHORIZED);
         }
-
-        String token = authHeader.substring(7);
 
         try {
             // 3. Decode and validate token signature
@@ -66,6 +65,31 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         }
     }
 
+    /**
+     * Tries extracting the token cleanly from standard headers, lowercase headers, and query strings.
+     */
+    private String extractToken(ServerHttpRequest request) {
+        // Strategy A: Standard header check
+        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+
+        // Strategy B: Case-insensitive fallback for tools like Postman WebSockets
+        if (authHeader == null) {
+            authHeader = request.getHeaders().getFirst("authorization");
+        }
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        // Strategy C: Check query string parameters (?token=ey...)
+        String queryToken = request.getQueryParams().getFirst("token");
+        if (queryToken != null && !queryToken.trim().isEmpty()) {
+            return queryToken;
+        }
+
+        return null;
+    }
+
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus status) {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(status);
@@ -75,7 +99,6 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        // High priority ordering step to ensure security intercepts before routing filters kick in
         return -1;
     }
 }

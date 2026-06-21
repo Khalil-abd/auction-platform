@@ -20,9 +20,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // The endpoint your Angular frontend will connect to
-        registry.addEndpoint("/ws-provider")
+        // 1. For your Angular frontend (retains SockJS support)
+        registry.addEndpoint("/ws-notifications")
                 .setAllowedOrigins("http://localhost:4200")
                 .withSockJS();
+
+        // 2. Dedicated path for raw testing tools like Postman (No SockJS)
+        registry.addEndpoint("/ws-raw")
+                .setAllowedOrigins("*");
     }
 }

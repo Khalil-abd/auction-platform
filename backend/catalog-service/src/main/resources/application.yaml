@@ -6,5 +6,8 @@ spring:
     name: catalog-service
   data:
     mongodb:
-      # Using environment variables for sensitive connection tokens
-      uri: mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@${MONGODB_HOST:localhost}:${MONGODB_PORT:27017}/${MONGODB_DATABASE:auction_catalog}?authSource=admin
+      host: ${MONGODB_HOST:localhost}
+      port: ${MONGODB_PORT:27017}
+      database: ${MONGODB_DATABASE}
+      username: ${MONGODB_USER}
+      password: ${MONGODB_PASSWORD}

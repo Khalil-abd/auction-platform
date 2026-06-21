@@ -13,15 +13,18 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
+                // 1. Explicitly disable standard form/basic flows to override defaults
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
+
+                // 2. Open up the testing pathways
                 .authorizeExchange(exchanges -> exchanges
-                        // Public entry endpoints (auth, registration, etc.)
+                        .pathMatchers("/ws-notifications/**").permitAll()
+                        .pathMatchers("/api/v1/auctions/**").permitAll()
+                        .pathMatchers("/ws-raw/**").permitAll()
                         .pathMatchers("/api/v1/auth/**").permitAll()
-                        // Allow internal service discovery/health lines if needed
                         .pathMatchers("/actuator/health").permitAll()
-                        // All other transactions must pass authentication checks
                         .anyExchange().authenticated()
                 )
                 .build();
