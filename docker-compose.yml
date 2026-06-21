@@ -198,6 +198,20 @@ services:
     networks:
       - auction-network
 
+  # 10. Angular Frontend (Nginx)
+  frontend:
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile
+    container_name: auction-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      gateway-service:
+        condition: service_started
+    networks:
+      - auction-network
+
 volumes:
   postgres_data:
     driver: local
