@@ -9,16 +9,24 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 
+/**
+ * Extracts and validates JWT tokens, then propagates user identity downstream.
+ * This filter never rejects requests itself — Spring Security's authorizeExchange
+ * rules in SecurityConfig are the single source of truth for access control.
+ */
 @Component
 @Slf4j
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
@@ -28,22 +36,13 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        ServerHttpRequest request = exchange.getRequest();
-        String path = request.getURI().getPath();
+        String token = extractToken(exchange.getRequest());
 
-        // 1. Skip token validation for public endpoints and WebSocket paths
-        if (path.contains("/api/v1/auth/") || path.startsWith("/ws-notifications") || path.startsWith("/ws-raw")) {
+        if (token == null) {
             return chain.filter(exchange);
         }
 
-        // 2. Extract Token with multiple strategies
-        String token = extractToken(request);
-        if (token == null) {
-            return onError(exchange, "Missing or invalid Authorization header or token query parameter", HttpStatus.UNAUTHORIZED);
-        }
-
         try {
-            // 3. Decode and validate token signature
             SecretKey key = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
             Claims claims = Jwts.parser()
                     .verifyWith(key)
@@ -51,28 +50,38 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            // 4. Propagate Identity down to microservices via secure mutated headers
-            ServerHttpRequest mutatedRequest = request.mutate()
-                    .header("X-User-Id", claims.getSubject())
-                    .header("X-User-Roles", claims.get("roles", String.class))
+            String userId = claims.getSubject();
+            String roles = claims.get("roles", String.class);
+
+            List<SimpleGrantedAuthority> authorities = roles != null
+                    ? Arrays.stream(roles.split(","))
+                        .map(String::trim)
+                        .map(SimpleGrantedAuthority::new)
+                        .toList()
+                    : List.of();
+
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(userId, null, authorities);
+
+            ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                    .header("X-User-Id", userId)
+                    .header("X-User-Roles", roles != null ? roles : "")
                     .build();
 
-            return chain.filter(exchange.mutate().request(mutatedRequest).build());
+            ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
+
+            return chain.filter(mutatedExchange)
+                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
 
         } catch (Exception e) {
-            log.error("JWT validation breakdown: {}", e.getMessage());
-            return onError(exchange, "Token signature identification failed", HttpStatus.UNAUTHORIZED);
+            log.warn("JWT validation failed: {}", e.getMessage());
+            return chain.filter(exchange);
         }
     }
 
-    /**
-     * Tries extracting the token cleanly from standard headers, lowercase headers, and query strings.
-     */
     private String extractToken(ServerHttpRequest request) {
-        // Strategy A: Standard header check
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
-        // Strategy B: Case-insensitive fallback for tools like Postman WebSockets
         if (authHeader == null) {
             authHeader = request.getHeaders().getFirst("authorization");
         }
@@ -81,20 +90,12 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return authHeader.substring(7);
         }
 
-        // Strategy C: Check query string parameters (?token=ey...)
         String queryToken = request.getQueryParams().getFirst("token");
         if (queryToken != null && !queryToken.trim().isEmpty()) {
             return queryToken;
         }
 
         return null;
-    }
-
-    private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus status) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(status);
-        log.warn("Security Reject Applied: {}", err);
-        return response.setComplete();
     }
 
     @Override

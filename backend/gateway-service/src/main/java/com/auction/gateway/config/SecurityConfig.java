@@ -6,6 +6,11 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
+/**
+ * Single source of truth for gateway access control.
+ * The JwtAuthenticationFilter only enriches the security context —
+ * all permit/deny decisions are made here.
+ */
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
@@ -13,18 +18,21 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
-                // 1. Explicitly disable standard form/basic flows to override defaults
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
 
-                // 2. Open up the testing pathways
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/ws-notifications/**").permitAll()
-                        .pathMatchers("/api/v1/auctions/**").permitAll()
-                        .pathMatchers("/ws-raw/**").permitAll()
+                        // Public endpoints — no token required
                         .pathMatchers("/api/v1/auth/**").permitAll()
+                        .pathMatchers("/api/v1/auctions/**").permitAll()
+                        .pathMatchers("/ws-notifications/**").permitAll()
+                        .pathMatchers("/ws-raw/**").permitAll()
                         .pathMatchers("/actuator/health").permitAll()
+
+                        // Protected endpoints — valid JWT required
+                        .pathMatchers("/api/v1/bids/**").authenticated()
+
                         .anyExchange().authenticated()
                 )
                 .build();
