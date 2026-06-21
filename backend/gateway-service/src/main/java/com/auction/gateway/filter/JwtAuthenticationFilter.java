@@ -31,8 +31,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
 
-        // 1. Skip token validation for public endpoints and WebSocket paths if needed
-        if (path.contains("/api/v1/auth/") || path.contains("/ws-notifications")) {
+        // 1. Skip token validation for public endpoints and WebSocket paths
+        if (path.contains("/api/v1/auth/") || path.startsWith("/ws-notifications") || path.startsWith("/ws-raw")) {
             return chain.filter(exchange);
         }
 

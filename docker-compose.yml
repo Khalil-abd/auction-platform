@@ -13,6 +13,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d auction_bidding"]
       interval: 10s
@@ -87,7 +88,28 @@ services:
     networks:
       - auction-network
 
-  # 5. API Gateway Edge Router
+  # 5. Authentication & Identity Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./backend/auth-service/Dockerfile
+    container_name: auction-auth
+    ports:
+      - "8084:8084"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=auction_auth
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auction-network
+
+  # 6. API Gateway Edge Router
   gateway-service:
     build:
       context: .
@@ -98,6 +120,8 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
+      auth-service:
+        condition: service_started
       catalog-service:
         condition: service_started
       bidding-service:
@@ -107,7 +131,7 @@ services:
     networks:
       - auction-network
 
-  # 6. Catalog Management Service
+  # 7. Catalog Management Service
   catalog-service:
     build:
       context: .
@@ -128,7 +152,7 @@ services:
     networks:
       - auction-network
 
-  # 7. Relational Transaction Bidding Service
+  # 8. Relational Transaction Bidding Service
   bidding-service:
     build:
       context: .
@@ -158,7 +182,7 @@ services:
     networks:
       - auction-network
 
-  # 8. Real-Time Notification & WebSocket Broker Service
+  # 9. Real-Time Notification & WebSocket Broker Service
   notification-service:
     build:
       context: .

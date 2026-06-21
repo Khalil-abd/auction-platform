@@ -32,19 +32,23 @@ public class GatewayRoutingConfig {
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
-                // 1. Catalog Service Route
+                // 1. Auth Service Route
+                .route("auth-service-route", r -> r
+                        .path("/api/v1/auth/**")
+                        .uri("http://auth-service:8084"))
+                // 2. Catalog Service Route
                 .route("catalog-service-route", r -> r
                         .path("/api/v1/auctions/**")
                         .uri("http://catalog-service:8081"))
-                // 2. Bidding Service Route
+                // 3. Bidding Service Route
                 .route("bidding-service-route", r -> r
                         .path("/api/v1/bids/**")
-                        .uri("http://bidding-service:8082")) // Using the container_name from compose
-                // 3. Real-Time Notification WebSocket Route
+                        .uri("http://bidding-service:8082"))
+                // 4. Real-Time Notification WebSocket Route
                 .route("notification-service-websocket-route", r -> r
                         .path("/ws-raw/**")
-                        .uri("ws://notification-service:8083")) // Using the container_name from compose
-                // 4. Production Angular Frontend WebSocket Route (SockJS support)
+                        .uri("ws://notification-service:8083"))
+                // 5. Production Angular Frontend WebSocket Route (SockJS support)
                 .route("notification-service-sockjs-route", r -> r
                         .path("/ws-notifications/**")
                         .uri("ws://notification-service:8083"))
