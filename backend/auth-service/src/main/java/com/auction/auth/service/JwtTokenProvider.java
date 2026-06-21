@@ -13,6 +13,9 @@ import java.util.UUID;
 @Component
 public class JwtTokenProvider {
 
+    private static final String ISSUER = "auction-auth-service";
+    private static final String AUDIENCE = "auction-platform";
+
     private final SecretKey signingKey;
     private final long accessTokenExpirationMs;
 
@@ -30,6 +33,8 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("roles", roles)
+                .issuer(ISSUER)
+                .audience().add(AUDIENCE).and()
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(signingKey)

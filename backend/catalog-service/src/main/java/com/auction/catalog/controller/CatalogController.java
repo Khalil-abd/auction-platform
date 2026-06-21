@@ -23,13 +23,14 @@ public class CatalogController {
     private final AuctionMapper auctionMapper;
 
     @PostMapping
-    public ResponseEntity<AuctionResponse> createAuction(@RequestBody AuctionCreateRequest request) {
-        // Map DTO payload to internal Entity structure
+    public ResponseEntity<AuctionResponse> createAuction(
+            @RequestHeader("X-User-Id") String authenticatedUserId,
+            @RequestBody AuctionCreateRequest request) {
         AuctionItem itemEntity = auctionMapper.toEntity(request);
+        itemEntity.setSellerId(authenticatedUserId);
 
         AuctionItem savedItem = auctionService.createAuction(itemEntity);
 
-        // Convert internal entity back to isolated response contract
         return ResponseEntity.status(HttpStatus.CREATED).body(auctionMapper.toResponse(savedItem));
     }
 

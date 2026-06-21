@@ -25,12 +25,13 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         // Public endpoints — no token required
                         .pathMatchers("/api/v1/auth/**").permitAll()
-                        .pathMatchers("/api/v1/auctions/**").permitAll()
+                        .pathMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/auctions/**").permitAll()
                         .pathMatchers("/ws-notifications/**").permitAll()
                         .pathMatchers("/ws-raw/**").permitAll()
                         .pathMatchers("/actuator/health").permitAll()
 
                         // Protected endpoints — valid JWT required
+                        .pathMatchers("/api/v1/auctions/**").authenticated()
                         .pathMatchers("/api/v1/bids/**").authenticated()
 
                         .anyExchange().authenticated()

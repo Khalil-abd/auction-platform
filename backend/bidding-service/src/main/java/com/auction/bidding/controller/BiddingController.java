@@ -25,10 +25,12 @@ public class BiddingController {
     private final BidMapper bidMapper;
 
     @PostMapping
-    public ResponseEntity<BidResponse> placeBid(@RequestBody PlaceBidRequest request) {
+    public ResponseEntity<BidResponse> placeBid(
+            @RequestHeader("X-User-Id") UUID authenticatedUserId,
+            @RequestBody PlaceBidRequest request) {
         BidHistory placedBid = biddingService.placeBid(
                 request.getAuctionId(),
-                request.getBidderId(),
+                authenticatedUserId,
                 request.getAmount()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(bidMapper.toResponse(placedBid));

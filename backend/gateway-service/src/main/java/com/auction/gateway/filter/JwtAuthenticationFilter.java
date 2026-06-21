@@ -26,26 +26,40 @@ import java.util.List;
 /**
  * WebFilter that runs BEFORE Spring Security to populate the SecurityContext
  * from a JWT token. Never rejects requests — SecurityConfig decides access.
+ * Always strips client-supplied X-User-Id/X-User-Roles to prevent spoofing.
  */
 @Component
 @Slf4j
 public class JwtAuthenticationFilter implements WebFilter, Ordered {
+
+    private static final String ISSUER = "auction-auth-service";
+    private static final String AUDIENCE = "auction-platform";
 
     @Value("${app.security.jwt.secret-key}")
     private String secretKeyString;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        String token = extractToken(exchange.getRequest());
+        // Always strip identity headers — only the gateway may set them
+        ServerHttpRequest sanitizedRequest = exchange.getRequest().mutate()
+                .headers(h -> {
+                    h.remove("X-User-Id");
+                    h.remove("X-User-Roles");
+                })
+                .build();
+
+        String token = extractToken(sanitizedRequest);
 
         if (token == null) {
-            return chain.filter(exchange);
+            return chain.filter(exchange.mutate().request(sanitizedRequest).build());
         }
 
         try {
             SecretKey key = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
             Claims claims = Jwts.parser()
                     .verifyWith(key)
+                    .requireIssuer(ISSUER)
+                    .requireAudience(AUDIENCE)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
@@ -63,12 +77,12 @@ public class JwtAuthenticationFilter implements WebFilter, Ordered {
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
-            ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+            ServerHttpRequest enrichedRequest = sanitizedRequest.mutate()
                     .header("X-User-Id", userId)
                     .header("X-User-Roles", roles != null ? roles : "")
                     .build();
 
-            ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
+            ServerWebExchange mutatedExchange = exchange.mutate().request(enrichedRequest).build();
 
             return chain.filter(mutatedExchange)
                     .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(
@@ -76,7 +90,7 @@ public class JwtAuthenticationFilter implements WebFilter, Ordered {
 
         } catch (Exception e) {
             log.warn("JWT validation failed: {}", e.getMessage());
-            return chain.filter(exchange);
+            return chain.filter(exchange.mutate().request(sanitizedRequest).build());
         }
     }
 
