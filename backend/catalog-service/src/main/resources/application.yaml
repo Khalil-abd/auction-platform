@@ -4,11 +4,11 @@ server:
 spring:
   application:
     name: catalog-service
-  data:
-    mongodb:
-      host: ${MONGODB_HOST:localhost}
-      port: ${MONGODB_PORT:27017}
-      database: ${MONGODB_DATABASE}
-      username: ${MONGODB_USER}
-      password: ${MONGODB_PASSWORD}
-      authentication-database: ${MONGODB_AUTH_DATABASE:admin}
+
+  mongodb:
+    host: ${MONGODB_HOST:localhost}
+    port: ${MONGODB_PORT:27017}
+    database: ${MONGODB_DATABASE}
+    username: ${MONGODB_USER}
+    password: ${MONGODB_PASSWORD}
+    authentication-database: ${MONGODB_AUTH_DATABASE:admin}
