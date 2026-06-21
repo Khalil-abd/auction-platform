@@ -1,6 +1,7 @@
 package com.auction.bidding.service;
 
 import com.auction.bidding.event.BidPlacedEvent;
+import com.auction.bidding.exception.InvalidBidException;
 import com.auction.bidding.model.AuctionEngine;
 import com.auction.bidding.model.BidHistory;
 import com.auction.bidding.repository.AuctionEngineRepository;
@@ -95,7 +96,7 @@ public class BiddingServiceImpl implements BiddingService {
 
     private void validateBidAmount(BigDecimal incomingAmount, BigDecimal currentHighest) {
         if (incomingAmount.compareTo(currentHighest) <= 0) {
-            throw new IllegalArgumentException("Bid amount must be strictly higher than the current highest bid.");
+            throw new InvalidBidException("Bid amount must be strictly higher than the current highest bid.");
         }
     }
 

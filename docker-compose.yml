@@ -66,6 +66,76 @@ services:
     networks:
       - auction-network
 
+  # 5. API Gateway Edge Router
+  gateway-service:
+    build:
+      context: .
+      dockerfile: ./backend/gateway-service/Dockerfile
+    container_name: auction-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - postgres
+      - mongodb
+    networks:
+      - auction-network
+
+  # 6. Catalog Management Service
+  catalog-service:
+    build:
+      context: .
+      dockerfile: ./backend/catalog-service/Dockerfile
+    container_name: auction-catalog
+    environment:
+      - MONGODB_HOST=mongodb
+      - MONGODB_PORT=27017
+      - MONGODB_USER=${MONGO_ROOT_USER}
+      - MONGODB_PASSWORD=${MONGO_ROOT_PASSWORD}
+    depends_on:
+      - mongodb
+    networks:
+      - auction-network
+
+  # 7. Relational Transaction Bidding Service
+  bidding-service:
+    build:
+      context: .
+      dockerfile: ./backend/bidding-service/Dockerfile
+    container_name: auction-bidding-engine
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_TOPIC_BIDS=${KAFKA_TOPIC_BIDS}
+      - REDIS_PREFIX_BIDS=${REDIS_PREFIX_BIDS}
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    networks:
+      - auction-network
+
+  # 8. Real-Time Notification & WebSocket Broker Service
+  notification-service:
+    build:
+      context: .
+      dockerfile: ./backend/notification-service/Dockerfile
+    container_name: auction-notifications
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_TOPIC_BIDS=${KAFKA_TOPIC_BIDS}
+    depends_on:
+      - kafka
+    networks:
+      - auction-network
+
 volumes:
   postgres_data:
     driver: local
