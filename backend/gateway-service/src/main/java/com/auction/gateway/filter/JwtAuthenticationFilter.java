@@ -5,16 +5,17 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
@@ -23,19 +24,18 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Extracts and validates JWT tokens, then propagates user identity downstream.
- * This filter never rejects requests itself — Spring Security's authorizeExchange
- * rules in SecurityConfig are the single source of truth for access control.
+ * WebFilter that runs BEFORE Spring Security to populate the SecurityContext
+ * from a JWT token. Never rejects requests — SecurityConfig decides access.
  */
 @Component
 @Slf4j
-public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
+public class JwtAuthenticationFilter implements WebFilter, Ordered {
 
     @Value("${app.security.jwt.secret-key}")
     private String secretKeyString;
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String token = extractToken(exchange.getRequest());
 
         if (token == null) {
@@ -71,7 +71,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
 
             return chain.filter(mutatedExchange)
-                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
+                    .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(
+                            Mono.just(new SecurityContextImpl(authentication))));
 
         } catch (Exception e) {
             log.warn("JWT validation failed: {}", e.getMessage());
@@ -100,6 +101,6 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return -1;
+        return -200;
     }
 }
