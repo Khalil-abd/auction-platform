@@ -11,3 +11,4 @@ spring:
       database: ${MONGODB_DATABASE}
       username: ${MONGODB_USER}
       password: ${MONGODB_PASSWORD}
+      authentication-database: ${MONGODB_AUTH_DATABASE:admin}
