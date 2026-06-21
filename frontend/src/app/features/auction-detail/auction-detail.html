@@ -1,0 +1,95 @@
+@if (loading) {
+  <div class="spinner-wrapper">
+    <mat-spinner></mat-spinner>
+  </div>
+} @else if (!auction) {
+  <div class="not-found">
+    <h2>Auction not found</h2>
+    <a mat-button routerLink="/auctions">Back to catalog</a>
+  </div>
+} @else {
+  <div class="detail-container">
+    <div class="auction-info">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>{{ auction.title }}</mat-card-title>
+          <mat-card-subtitle>
+            <mat-chip>{{ auction.status }}</mat-chip>
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="description">{{ auction.description }}</p>
+          <mat-divider></mat-divider>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="label">Starting Price</span>
+              <span class="value">{{ auction.startingPrice | currency }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Time Remaining</span>
+              <span class="value"><app-countdown [endTime]="auction.endTimestamp" /></span>
+            </div>
+            <div class="info-item">
+              <span class="label">Seller</span>
+              <span class="value seller-id">{{ auction.sellerId }}</span>
+            </div>
+          </div>
+        </mat-card-content>
+        <mat-card-actions>
+          <a mat-button [routerLink]="['/auctions', auction.id, 'bids']">
+            <mat-icon>history</mat-icon> View Full Bid History
+          </a>
+        </mat-card-actions>
+      </mat-card>
+    </div>
+
+    <div class="live-bids">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>wifi</mat-icon> Live Bids
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          @if (authService.isAuthenticated()) {
+            <form [formGroup]="bidForm" (ngSubmit)="placeBid()" class="bid-form">
+              <mat-form-field appearance="outline">
+                <mat-label>Your Bid Amount</mat-label>
+                <input matInput type="number" formControlName="amount" step="0.01" />
+                <span matPrefix>$&nbsp;</span>
+              </mat-form-field>
+              <button mat-raised-button color="primary" type="submit"
+                      [disabled]="bidForm.invalid || submitting">
+                @if (submitting) {
+                  <mat-spinner diameter="20"></mat-spinner>
+                } @else {
+                  Place Bid
+                }
+              </button>
+            </form>
+          } @else {
+            <p class="login-hint">
+              <a routerLink="/login">Login</a> to place a bid.
+            </p>
+          }
+
+          <mat-divider></mat-divider>
+
+          @if (liveBids.length === 0) {
+            <p class="no-bids">Waiting for bids...</p>
+          } @else {
+            <mat-list>
+              @for (bid of liveBids; track bid.timestamp; let i = $index) {
+                <mat-list-item [class.latest]="i === 0">
+                  <mat-icon matListItemIcon>{{ i === 0 ? 'star' : 'attach_money' }}</mat-icon>
+                  <span matListItemTitle>{{ bid.amount | currency }}</span>
+                  <span matListItemLine>{{ bid.timestamp | date:'medium' }}</span>
+                </mat-list-item>
+              }
+            </mat-list>
+          }
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+}

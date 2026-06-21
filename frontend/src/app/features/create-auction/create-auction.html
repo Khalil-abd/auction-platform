@@ -1,0 +1,65 @@
+<div class="create-container">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Create New Auction</mat-card-title>
+      <mat-card-subtitle>List an item for bidding</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Title</mat-label>
+          <input matInput formControlName="title" />
+          @if (form.get('title')?.hasError('required') && form.get('title')?.touched) {
+            <mat-error>Title is required</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Description</mat-label>
+          <textarea matInput formControlName="description" rows="4"></textarea>
+          @if (form.get('description')?.hasError('required') && form.get('description')?.touched) {
+            <mat-error>Description is required</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Starting Price</mat-label>
+          <input matInput type="number" formControlName="startingPrice" step="0.01" />
+          <span matPrefix>$&nbsp;</span>
+          @if (form.get('startingPrice')?.hasError('required') && form.get('startingPrice')?.touched) {
+            <mat-error>Starting price is required</mat-error>
+          } @else if (form.get('startingPrice')?.hasError('min')) {
+            <mat-error>Must be greater than 0</mat-error>
+          }
+        </mat-form-field>
+
+        <div class="date-time-row">
+          <mat-form-field appearance="outline">
+            <mat-label>End Date</mat-label>
+            <input matInput [matDatepicker]="picker" formControlName="endDate" [min]="minDate" />
+            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+            <mat-datepicker #picker></mat-datepicker>
+            @if (form.get('endDate')?.hasError('required') && form.get('endDate')?.touched) {
+              <mat-error>End date is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>End Time</mat-label>
+            <input matInput type="time" formControlName="endTime" />
+          </mat-form-field>
+        </div>
+
+        <button mat-raised-button color="primary" type="submit"
+                class="full-width" [disabled]="form.invalid || loading">
+          @if (loading) {
+            <mat-spinner diameter="20"></mat-spinner>
+          } @else {
+            Create Auction
+          }
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>

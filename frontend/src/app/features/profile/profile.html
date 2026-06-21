@@ -1,0 +1,50 @@
+<div class="profile-container">
+  <mat-card>
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="avatar-icon">account_circle</mat-icon>
+      <mat-card-title>My Profile</mat-card-title>
+      <mat-card-subtitle>{{ roles }}</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="info-row">
+        <span class="label">User ID</span>
+        <span class="value">{{ userId }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Roles</span>
+        <span class="value">{{ roles }}</span>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <h3>My Auctions</h3>
+      @if (loadingAuctions) {
+        <div class="spinner-wrapper">
+          <mat-spinner diameter="32"></mat-spinner>
+        </div>
+      } @else if (myAuctions.length === 0) {
+        <p class="empty">You haven't created any auctions yet.</p>
+      } @else {
+        <mat-list>
+          @for (auction of myAuctions; track auction.id) {
+            <mat-list-item [routerLink]="['/auctions', auction.id]" class="clickable">
+              <mat-icon matListItemIcon>gavel</mat-icon>
+              <span matListItemTitle>{{ auction.title }}</span>
+              <span matListItemLine>
+                {{ auction.startingPrice | currency }} &middot;
+                <app-countdown [endTime]="auction.endTimestamp" />
+              </span>
+            </mat-list-item>
+          }
+        </mat-list>
+      }
+    </mat-card-content>
+
+    <mat-card-actions>
+      <button mat-raised-button color="warn" (click)="logout()">
+        <mat-icon>logout</mat-icon> Logout
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>

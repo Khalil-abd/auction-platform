@@ -1,0 +1,22 @@
+<mat-toolbar color="primary">
+  <a mat-button routerLink="/auctions" routerLinkActive="active-link">
+    <mat-icon>gavel</mat-icon>
+    Auction Platform
+  </a>
+  <span class="spacer"></span>
+
+  @if (authService.isAuthenticated$ | async) {
+    <a mat-button routerLink="/auctions/new" routerLinkActive="active-link">
+      <mat-icon>add</mat-icon> Create Auction
+    </a>
+    <a mat-button routerLink="/profile" routerLinkActive="active-link">
+      <mat-icon>person</mat-icon> Profile
+    </a>
+    <button mat-button (click)="logout()">
+      <mat-icon>logout</mat-icon> Logout
+    </button>
+  } @else {
+    <a mat-button routerLink="/login" routerLinkActive="active-link">Login</a>
+    <a mat-button routerLink="/register" routerLinkActive="active-link">Register</a>
+  }
+</mat-toolbar>

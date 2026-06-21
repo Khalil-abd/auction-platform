@@ -1,0 +1,52 @@
+<div class="catalog-container">
+  <h1>Active Auctions</h1>
+
+  @if (loading) {
+    <div class="spinner-wrapper">
+      <mat-spinner></mat-spinner>
+    </div>
+  } @else if (auctions.length === 0) {
+    <div class="empty-state">
+      <mat-icon>storefront</mat-icon>
+      <p>No active auctions at the moment.</p>
+    </div>
+  } @else {
+    <div class="auction-grid">
+      @for (auction of auctions; track auction.id) {
+        <mat-card class="auction-card" [routerLink]="['/auctions', auction.id]">
+          <mat-card-header>
+            <mat-card-title>{{ auction.title }}</mat-card-title>
+            <mat-card-subtitle>
+              <mat-chip>{{ auction.status }}</mat-chip>
+            </mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <p class="description">{{ auction.description }}</p>
+            <div class="card-details">
+              <div class="detail">
+                <span class="label">Starting Price</span>
+                <span class="value">{{ auction.startingPrice | currency }}</span>
+              </div>
+              <div class="detail">
+                <span class="label">Time Left</span>
+                <span class="value"><app-countdown [endTime]="auction.endTimestamp" /></span>
+              </div>
+            </div>
+          </mat-card-content>
+          <mat-card-actions>
+            <a mat-button [routerLink]="['/auctions', auction.id]">View Details</a>
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
+
+    <mat-paginator
+      [length]="totalElements"
+      [pageSize]="pageSize"
+      [pageIndex]="pageIndex"
+      [pageSizeOptions]="[6, 12, 24]"
+      (page)="onPageChange($event)"
+      showFirstLastButtons>
+    </mat-paginator>
+  }
+</div>

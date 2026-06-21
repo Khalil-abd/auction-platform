@@ -1,0 +1,32 @@
+.history-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+
+  mat-card {
+    padding: 16px;
+  }
+
+  .full-width {
+    width: 100%;
+  }
+
+  .bidder-cell {
+    font-size: 0.8rem;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .spinner-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 40px 0;
+  }
+
+  .no-bids {
+    text-align: center;
+    padding: 40px 0;
+    opacity: 0.6;
+  }
+}
